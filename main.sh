@@ -1,110 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# ===============================
-# Petroductyl Installer
-# ===============================
+# ==========================================================
+# PIXDRAQ CLOUD SYSTEM | SAFE BOOTSTRAP EDITION
+# DATE: 2026-02-12 | UI-TYPE: ASC-II HYPER-VISUAL
+# ==========================================================
 
-set -e
+set -euo pipefail
 
-LOG_FILE="/var/log/petroductyl-installer.log"
+LOG_FILE="/var/log/pixdraq-installer.log"
+HOST="run.pixdraqhost.in"
+URL="https://${HOST}"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-YELLOW='\033[1;33m'
+# --- Colors ---
+R='\033[1;31m'
+G='\033[1;32m'
+Y='\033[1;33m'
+C='\033[1;36m'
+W='\033[1;37m'
+DG='\033[1;90m'
 NC='\033[0m'
 
-# Root Check
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Please run as root.${NC}"
-    exit 1
-fi
-
-# Ubuntu Version Check
-if ! grep -q "20.04\|22.04" /etc/os-release; then
-    echo -e "${RED}Only Ubuntu 20.04 and 22.04 are supported.${NC}"
-    exit 1
-fi
-
-# Pause Function
-pause_and_return() {
-    echo ""
-    echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}Script executed successfully${NC}"
-    echo -e "${GREEN}Press Enter to continue...${NC}"
-    echo -e "${GREEN}========================================${NC}"
-    read
+draw_banner() {
     clear
-}
-
-# Banner
-show_banner() {
-    clear
-    echo -e "${CYAN}"
-    echo "========================================"
-    echo "        PETRODUCTYL INSTALLER"
-    echo "========================================"
+    echo -e "${G}"
+    cat << "EOF"
+ ██████╗ ██╗██╗  ██╗██████╗ ██████╗  █████╗  ██████╗ 
+ ██╔══██╗██║╚██╗██╔╝██╔══██╗██╔══██╗██╔══██╗██╔════╝ 
+ ██████╔╝██║ ╚███╔╝ ██║  ██║██████╔╝███████║██║  ███╗
+ ██╔═══╝ ██║ ██╔██╗ ██║  ██║██╔══██╗██╔══██║██║   ██║
+ ██║     ██║██╔╝ ██╗██████╔╝██║  ██║██║  ██║╚██████╔╝
+ ╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ 
+EOF
     echo -e "${NC}"
-}
-
-# Simulated Install Functions (Replace Later)
-
-install_panel() {
-    echo -e "${YELLOW}Installing Pterodactyl Panel...${NC}"
-    sleep 2
-    pause_and_return
-}
-
-install_wings() {
-    echo -e "${YELLOW}Installing Wings...${NC}"
-    sleep 2
-    pause_and_return
-}
-
-install_database() {
-    echo -e "${YELLOW}Installing Database...${NC}"
-    sleep 2
-    pause_and_return
-}
-
-install_tailscale() {
-    echo -e "${YELLOW}Installing Tailscale...${NC}"
-    sleep 2
-    pause_and_return
-}
-
-system_info() {
-    echo -e "${CYAN}System Information:${NC}"
-    echo "OS: $(lsb_release -ds)"
-    echo "RAM: $(free -h | awk '/Mem:/ {print $2}')"
-    echo "CPU: $(nproc) cores"
-    echo "Disk: $(df -h / | awk 'NR==2 {print $2}')"
-    pause_and_return
-}
-
-# Main Menu
-while true; do
-    show_banner
-    echo "1) Install Pterodactyl Panel"
-    echo "2) Install Wings"
-    echo "3) Install Database"
-    echo "4) Install Tailscale"
-    echo "5) System Information"
-    echo "0) Exit"
+    echo -e " ${R}──[ ${W}SAFE MODE${R} ]${NC}${DG}────────────────────────────${NC}"
     echo ""
-    read -p "Select an option: " option
+}
 
-    case $option in
-        1) install_panel ;;
-        2) install_wings ;;
-        3) install_database ;;
-        4) install_tailscale ;;
-        5) system_info ;;
-        0) exit 0 ;;
-        *)
-            echo -e "${RED}Invalid option!${NC}"
-            sleep 1
-            ;;
-    esac
-done
+pause_and_exit() {
+    echo ""
+    echo -e "${G}========================================${NC}"
+    echo -e "${G}Script executed successfully${NC}"
+    echo -e "${G}Press Enter to exit...${NC}"
+    echo -e "${G}========================================${NC}"
+    read
+    exit 0
+}
+
+# --- START ---
+draw_banner
+
+echo -e "${Y}Target Host:${NC} ${C}${HOST}${NC}"
+echo ""
+
+read -p "Do you want to connect and download remote payload? (y/n): " confirm
+
+if [[ "$confirm" != "y" ]]; then
+    echo -e "${R}Operation cancelled.${NC}"
+    exit 1
+fi
+
+echo -e "${C}Downloading payload...${NC}"
+
+payload="$(mktemp)"
+trap "rm -f $payload" EXIT
+
+if curl -fsSL -A "Pixdraq-Agent" -o "$payload" "$URL"; then
+    echo -e "${G}Download successful.${NC}"
+else
+    echo -e "${R}Failed to download payload.${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "${Y}Preview of downloaded payload (first 20 lines):${NC}"
+echo "--------------------------------------------------"
+head -n 20 "$payload"
+echo "--------------------------------------------------"
+echo ""
+
+read -p "Execute this payload? (y/n): " execute_confirm
+
+if [[ "$execute_confirm" == "y" ]]; then
+    echo -e "${C}Executing payload...${NC}"
+    bash "$payload" | tee -a "$LOG_FILE"
+    pause_and_exit
+else
+    echo -e "${R}Execution cancelled.${NC}"
+    exit 1
+fi
